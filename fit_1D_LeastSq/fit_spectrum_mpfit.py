@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
 
-specIdat = '034205.4-370322.00_specI.dat'
-specIdat = 'Source8.dat'
+#specIdat = '034205.4-370322.00_specI.dat'
+#specIdat = 'Source8.dat'
 specIdat = 'HotSpot.dat'
 order = 5
 
@@ -25,8 +25,8 @@ def main():
     specIArr[0] /= 1e9 # Hz -> GHz
  
     # Autoscale the data
-    scaleX = np.nanmax(specIArr[0])
-    scaleY = np.nanmax(specIArr[1])
+    scaleX = 1.0 #np.nanmax(specIArr[0])
+    scaleY = 1.0 #np.nanmax(specIArr[1])
     specIArr[0] /= scaleX
     specIArr[1] /= scaleY
     specIArr[4] /= scaleY
