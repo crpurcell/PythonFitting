@@ -1,0 +1,29 @@
+#-----------------------------------------------------------------------------#
+# Install multinest:
+
+export BASE="/opt/share"
+
+sudo apt-get install python-{scipy,numpy,matplotlib,progressbar} ipython libblas{3,-dev} liblapack{3,-dev} libatlas{3-base,-dev} cmake build-essential git gfortran libopenmpi-dev
+
+git clone https://github.com/JohannesBuchner/MultiNest
+cd MultiNest/build
+mkdir $BASE/multinest
+cmake -DCMAKE_INSTALL_PREFIX=$BASE/multinest ..
+make
+make install
+
+# Add the paths to your .bash_aliases
+PATH=$BASE/multinest:$PATH
+export PATH
+LD_LIBRARY_PATH=$BASE/multinest/lib:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH
+
+#-----------------------------------------------------------------------------#
+# Install PyMultiNest:
+
+git clone https://github.com/JohannesBuchner/PyMultiNest/
+cd PyMultiNest
+python setup.py install --home=$BASE
+
+# Check installation (should give no errors)
+python -c 'import pymultinest'
