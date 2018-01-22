@@ -38,7 +38,7 @@ def main():
     # Run nested sampling
     res = nestle.sample(loglikelihood   = lnlike,
                         prior_transform = priorTr,
-                        ndim            = 2,
+                        ndim            = 6,
                         method          = "single",
                         npoints         = 1000)
     
@@ -87,7 +87,7 @@ def model(p):
 def priorTr(p):
     """ Defines a flat prior in 0 < m < 1, 0 < b < 100 """
 
-    return np.array([1., 100.]) * p
+    return np.array([1., 1., 1., 1., 1., 1.]) * p
 
     
 #-----------------------------------------------------------------------------#
