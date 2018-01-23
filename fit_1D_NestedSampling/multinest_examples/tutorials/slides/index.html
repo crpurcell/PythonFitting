@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+
+		<title>PyMultiNest tutorial</title>
+
+		<link rel="stylesheet" href="css/reveal.min.css" />
+		<link rel="stylesheet" href="css/theme/default.css" id="theme" />
+		<link rel="stylesheet" href="css/zenburn.css" />
+		
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+		
+		<style type="text/css">
+		.reveal li { margin-top: 0.2em; }
+		.reveal p, .reveal h3, .reveal h2, .reveal h1 { margin-top: 0.75em; }
+		.reveal h1 { font-size: 3em; }
+		.reveal h1, .reveal h2, .reveal h3, .reveal h4 { 
+			hyphens: none; 
+			-moz-hyphens: none; 
+			-webkit-hyphens: none; word-wrap: none; }
+		.reveal table, .reveal td, .reveal th, .reveal tr {
+		padding: 0;
+		margin: 0;
+		}
+		.reveal td {
+		border-left: 1px dashed #CCC;
+		}
+		.reveal td, .reveal th {
+		padding: 0.2em 0.5em;
+		border-bottom: 1px dashed #CCC;
+		}
+	
+.checkboxlist li {
+	list-style: none;
+}
+.checkboxlist li:before
+{
+    content: "\2610";
+    margin-right:5px;
+}
+
+.checkboxlist li:hover:before
+{
+    content: "\2611";
+    margin-right:5px;
+}
+		</style>
+		
+		<script type="text/javascript">
+			document.write( '<link rel="stylesheet" href="css/print/' + ( window.location.search.match( /print-pdf/gi ) ? 'pdf' : 'paper' ) + '.css" type="text/css" media="print">' );
+		</script>
+	</head>
+
+	<body>
+		<div class="reveal">
+			<div class="slides">
+<section>
+	<h1>PyMultiNest tutorial</h1>
+	<h3>Casual parameter estimation and model selection</h3>
+	<br><br>
+	<p>Johannes Buchner
+	<br><br>
+	<p style="font-size: 0.75em">Max Planck Institute for Extraterrestrial Physics
+	<p style="font-size: 0.75em">November 2013
+</section>
+
+<section>
+	<h2>About me</h2>
+	<ul><li>implemented MCMC sampler for Bachelor thesis
+	<li>since then, 5 years of experience with Monte Carlo methods for Bayesian inference
+	<li>Numerical Likelihood functions (0.1-5s), low-dimensional (&lt;20)
+	<li>Research on accreting supermassive black hole in X-ray (Poisson spectra)
+	<li>Recent interest: smooth field reconstruction with numerical likelihoods (20-500 dimensions)
+	</ul>
+	<p style="font-size: 0.5em"><a href="https://www.mpe.mpg.de/~jbuchner/">https://www.mpe.mpg.de/~jbuchner/</a> -- Johannes Buchner
+</section>
+
+<section>
+	<h2>Go-to Methods</h2>
+	<div style="text-align: left">
+	(for numerical likelihoods)
+	<h3>Parameter estimation</h3>
+	<ul>
+	<li>Optimize to maximum (ML/MAP)
+	<li>explore around it with MCMC
+	<li>High-dimensional, misbehaved: MCMC (?), HMC (?)
+	<li>
+	</ul>
+	<h3>Model selection</h3>
+	<ul>
+	<li>High-dimensional: 
+	<li>Low-dimensional: 
+	<li>Nested models: 
+	</ul>
+	</div>
+</section>
+
+<section>
+	<h2>Tools so far</h2>
+	<div style="text-align: left">
+	(for numerical likelihoods)
+	<h3>Parameter estimation</h3>
+	<ul>
+	<li>Optimize to maximum (ML/MAP)
+	<li>explore around it with MCMC
+	<li>High-dimensional, misbehaved: MCMC (?), HMC (?)
+	<li>Low-dimensional, multi-modal: MultiNest
+	</ul>
+	<h3>Model selection</h3>
+	<ul>
+	<li>High-dimensional: give up
+	<li>Low-dimensional (&lt;20), multi-modal: MultiNest
+	<li>Nested models: AIC + DE
+	</ul>
+	also for Low-dimensional, multi-modal: MultiNest
+	</div>
+</section>
+
+<section>
+	<h2>What will we do today?</h2>
+	Goal: solving <script type="math/tex">Z</script> integrals
+	<ul>
+	<li>Write likelihood functions
+	<li>Write prior functions
+	<li>run nested sampling code
+	<li>look at marginal plots and compare evidence <script type="math/tex">Z</script>
+	</ul>
+</section>
+
+<section>
+	<h2>Software: PyMultiNest</h2>
+	<ul>
+	<li>based on MultiNest: written by Farhan Feroz and Mike Hobson (2007)
+	<li>Finds clusters -> sampling from ellipses
+	<li>Python instead of writing Fortran or C functions
+	<li>parses output, and does a bit of plotting
+	<li>Also produces "Markov Chain" for uncertainty propagation
+	</ul>
+</section>
+
+
+<section>
+	<h2>Prior functions: A math trick</h2>
+	<p>Based on transforming unit cube:
+	<p>
+	<script type="math/tex">\int_a^b{f(x)g(x) dx} = \int_0^1{f(G^{-1}(u))~ du}</script>
+	<p>
+	<pause>
+	where <script type="math/tex">G</script> is the cumulative distribution of <script type="math/tex">g</script>:
+	<p><script type="math/tex">G(x) = \int_{-\infty}^{x}{g(x') dx'}, G(a) = 0, G(b) = 1</script>
+	
+	<div class="fragment"><ul><li>transformation through inverse of CDF
+	<li>compresses unimportant regions
+	<li>"native units": <script type="math/tex">P(\theta|D)\propto \int_0^1{P(D|u) du} </script>
+	<li>can also do this in MCMC!
+	</ul></div>
+</section>
+<section>
+	<h2>Prior functions: A math trick</h2>
+	<ul>
+	<li>Transform from unit cube to parameter space
+	<li>Using inverse CDF of prior
+	</ul>
+	<img src="prior_transform_uniform.png" style="background-color: white;" />
+	<img src="prior_transform_loguniform.png" style="background-color: white;"/>
+	<pre><code data-trim class="python">
+def prior(cube, ndim, nparams):
+	cube[0] = cube[0] * (3 - 1) + 1
+	cube[1] = 10**(cube[1] * (1 + 0.5) - 1)
+</code></pre>
+</section>
+
+
+
+<section>
+	<h2>Shortest Code Example</h2>
+	<pre><code data-trim class="python">import pymultinest
+
+def prior(cube, ndim, nparams):
+	cube[0] = cube[0] * 2
+
+def loglikelihood(cube, ndim, nparams):
+	return -0.5 * ((cube[0] - 0.2) / 0.1)**2
+
+pymultinest.run(loglikelihood, prior, n_params=1)
+
+</code></pre>
+<ul><li>Prior ~ <script type="math/tex">U(0, 2)</script>
+<li>Likelihood ~ <script type="math/tex">N(\mu=0.2, \sigma=0.1)</script>
+<li>1d
+</section>
+
+<section>
+	<h2>Tutorial</h2>
+	<a href="http://johannesbuchner.github.io/pymultinest-tutorial/" target="_window">http://johannesbuchner.github.io/pymultinest-tutorial/</a>
+	<pre><code data-trim class="bash">$ ssh -Y schoolNN@naf-school01.desy.de
+$ bash
+$ source /afs/desy.de/group/school/mc-school/setup_pymultinest.sh
+$ git clone https://github.com/JohannesBuchner/pymultinest-tutorial</code></pre>
+	<ul class="checkboxlist">
+	<li>Example 1: <i>1d multi-modal problem</i>
+	<li>Example 2: <i>Spectral line analysis</i> -- 1 line or 2 lines?
+	<li>Example 3: Hierarchical Bayes, Your own, Lighthouse problem, further reading
+	</ul>
+</section>
+
+<section>
+	<h2>Final points</h2>
+	<ul>
+	<li>Correlation of parameters from posterior samples <a href="http://johannesbuchner.github.io/syscorr/index.html">SysCorr</a>
+	<li>Throw multiple algorithms against problem (<a href="http://johannesbuchner.github.io/jbopt/index.html">jbopt</a>)
+	<li>Fully automated model selection, but is model a good one? Systematic errors? Confidence on model choice?
+	<li>PyMultiNest reference: Buchner et al (in prep), MultiNest: arXiv:0704.3704, arXiv:0809.3437 & arXiv:1306.2144
+	</ul>
+</section>
+
+			</div>
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.min.js"></script>
+		<script src="js/jquery-2.0.3.min.js"></script>
+		<script src="js/squiggle.min.js"></script>
+		<script src="js/arrows.js"></script>
+
+		<script>
+			Reveal.initialize({
+				history: true,
+				transition: 'cube',
+				overview: true,
+				/*backgroundTransition: 'fade',*/
+				math: {
+					mathjax: 'http://cdn.mathjax.org/mathjax/latest/MathJax.js',
+					config: 'TeX-AMS-MML_HTMLorMML-full',
+				},
+
+				dependencies: [
+					{ src: 'lib/js/classList.js' },
+					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+					{ src: 'plugin/math/math.js', async: true },
+				]
+			});
+		</script>
+	</body>
+</html>
+
