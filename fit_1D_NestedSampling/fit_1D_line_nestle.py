@@ -3,13 +3,22 @@
 #                                                                             #
 # NAME:     fit_1D_line_nestle.py                                             #
 #                                                                             #
-# PURPOSE:  Example of using Nestle nested sampling module to fit a line      #
+# PURPOSE:  Example of using Nestle nested-sampling module to fit a line      #
 #                                                                             #
-# MODIFIED: 18-Jan-2018 by C. Purcell                                         #
+# MODIFIED: 23-Jan-2018 by C. Purcell                                         #
 #                                                                             #
 #=============================================================================#
 
+# Input dataset 
 specDat = "lineSpec.dat"
+
+# Prior bounds of m and c in linear model y = m*x + c
+boundsLst = [[  0.0,   1.0],    # 0 < m < 1 
+             [-10.0, 100.0]]    # 0 < c < 100
+
+# Prior type ("uniform" or "normal")
+priorType = "uniform"
+
 
 #=============================================================================#
 import os
@@ -17,6 +26,7 @@ import sys
 import numpy as np
 import matplotlib as mpl
 import pylab as pl
+from scipy.special import ndtri
 
 from Imports import nestle
 from Imports import corner
@@ -35,18 +45,19 @@ def main():
     def lnlike(p):
         return -0.5*(np.sum( (yArr-model(p)(xArr))**2/dyArr**2 ))
     
+    # Set the prior function given the bounds
+    priorTr = prior(boundsLst, priorType)
+    nDim = len(boundsLst)
+    
     # Run nested sampling
     res = nestle.sample(loglikelihood   = lnlike,
                         prior_transform = priorTr,
-                        ndim            = 2,
-                        method          = "single",
-                        npoints         = 1000)
+                        ndim            = nDim,
+                        npoints         = 1000,
+                        method          = "single")
     
     # Weighted average and covariance:
     p, cov = nestle.mean_and_cov(res.samples, res.weights)
-
-    print p
-    print priorTr(p)
     
     # Summary of run
     print("-"*80)
@@ -56,43 +67,54 @@ def main():
     print("-"*80)
     print("RESULTS:")
     print("m = {0:5.2f} +/- {1:5.2f}".format(p[0], np.sqrt(cov[0, 0])))
-    print("b = {0:5.2f} +/- {1:5.2f}".format(p[1], np.sqrt(cov[1, 1])))
+    print("c = {0:5.2f} +/- {1:5.2f}".format(p[1], np.sqrt(cov[1, 1])))
     
     # Plot the data and best fit
     plot_model(p, xArr, yArr, dyArr)
 
     # Plot the triangle plot
     fig = corner.corner(res.samples,
-                        weights=res.weights,
-                        labels=['m', 'b'],
-                        range=[0.99999, 0.99999],
-                        truths=p,
+                        weights = res.weights,
+                        labels  = ['m', 'b'],
+                        range   = [0.99999]*nDim,
+                        truths  = p,
                         bins=30)
     fig.show()
-    
-    
     print("Press <Return> to finish:")
     raw_input()
 
     
 #-----------------------------------------------------------------------------#
 def model(p):
-    """ Function which returns another function to evaluate the model"""
+    """ Returns a function to evaluate the model """
     
     def rfunc(x):
         y = p[0]*x + p[1]
         return y
-
     return rfunc
 
 
 #-----------------------------------------------------------------------------#
-def priorTr(p):
-    """ Defines a flat prior in 0 < m < 1, 0 < b < 100 """
+def prior(boundsLst, priorType="uniform"):
+    """ Returns a function to transform (0-1) range to the distribution of 
+    values for each parameter """
 
-    return np.array([1., 100.]) * p
-
+    b = np.array(boundsLst, dtype="f4")
+    r = b[:,1]-b[:,0]
+    sigma = r/2.0
+    mu = b[:,0] + sigma
     
+    if priorType == "normal":
+        def rfunc(p):
+            return mu + sigma * ndtri(p)
+
+    else:
+        def rfunc(p):
+            return b[:,0] + p * r
+        
+    return rfunc
+
+
 #-----------------------------------------------------------------------------#
 def plot_model(p, x, y, dy, scaleX=1.0):
 

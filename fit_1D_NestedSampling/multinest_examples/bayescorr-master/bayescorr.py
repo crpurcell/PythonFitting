@@ -14,10 +14,10 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 import matplotlib.gridspec as gridspec
 import matplotlib.patches as patches
-#rc('text', usetex=True)
-#rc('font',**{'family':'serif','serif':['serif'],'size':25})
-#matplotlib.rc('text', usetex=True)
-#matplotlib.rcParams['text.latex.preamble']=[r"\usepackage{amsmath}"]
+rc('text', usetex=True)
+rc('font',**{'family':'serif','serif':['serif'],'size':25})
+matplotlib.rc('text', usetex=True)
+matplotlib.rcParams['text.latex.preamble']=[r"\usepackage{amsmath}"]
 #sys.path.append(os.environ['PYMULTINEST'])
 import pymultinest
 

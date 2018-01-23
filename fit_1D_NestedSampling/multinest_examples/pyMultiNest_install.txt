@@ -12,6 +12,11 @@ cmake -DCMAKE_INSTALL_PREFIX=$BASE/multinest ..
 make
 make install
 
+# Clean up
+cd ../..
+rm -rf MultiNest
+
+
 # Add the paths to your .bash_aliases
 PATH=$BASE/multinest:$PATH
 export PATH
@@ -27,3 +32,7 @@ python setup.py install --home=$BASE
 
 # Check installation (should give no errors)
 python -c 'import pymultinest'
+
+# Clean up
+cd ..
+rm -rf PyMultiNest
