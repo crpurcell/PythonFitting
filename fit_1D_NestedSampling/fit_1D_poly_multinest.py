@@ -1,26 +1,30 @@
 #!/usr/bin/env python
 #=============================================================================#
 #                                                                             #
-# NAME:     fit_1D_line_nestle.py                                             #
+# NAME:     fit_1D_poly_multinest.py                                          #
 #                                                                             #
-# PURPOSE:  Example of using Nestle nested-sampling module to fit a line      #
+# PURPOSE:  Example of using PyMultiNest to fit a polynomial to some data     #
 #                                                                             #
-# MODIFIED: 23-Jan-2018 by C. Purcell                                         #
+# MODIFIED: 24-Jan-2018 by C. Purcell                                         #
 #                                                                             #
 #=============================================================================#
 
 # Input dataset 
-specDat = "lineSpec.dat"
+specDat = "polySpec.dat"
 
-# Prior bounds of m and c in linear model y = m*x + c
-boundsLst = [[  0.0,   1.0],    # 0 < m < 1 
-             [-10.0, 100.0]]    # 0 < c < 100
+# Output directory for chains
+outDir = "chains"
 
-# Prior type for all variables: "uniform" (default) or "normal"
+# Prior bounds of parameters in 3rd order polynomial model
+# y = p[0] + p[1]*x + p[2]*x^2 + p[3]*x^3
+boundsLst = [[  0.0,   2.0],    #   0 < p[0] < 2
+             [ -1.0,   1.0],    #  -1 < p[1] < 1
+             [ -1.0,   1.0],    #  -1 < p[2] < 1
+             [ -1.0,   1.0]]    #  -1 < p[4] < 1
+
+# Prior type ("uniform" or "normal")
 priorType = "uniform"
 
-# Number of points
-nPoints = 500
 
 #=============================================================================#
 import os
@@ -30,7 +34,7 @@ import matplotlib as mpl
 import pylab as pl
 from scipy.special import ndtri
 
-from Imports import nestle
+import pymultinest as pmn
 from Imports import corner
 
 
@@ -39,69 +43,47 @@ def main():
     
     # Read in the spectrum
     specArr = np.loadtxt(specDat, dtype="float64", unpack=True)
-    xArr = specArr[0]
-    yArr = specArr[1]
-    dyArr = specArr[2]
+    xArr = specArr[0] / 1e9   # GHz -> Hz for this dataset 
+    yArr = specArr[1] 
+    dyArr = specArr[4]
 
-    # Must define the lnlike() here so data can be inserted
-    def lnlike(p):
-        return -0.5*(np.sum( (yArr-model(p)(xArr))**2/dyArr**2 ))
-    
+    # Set the likelihood function
+    lnlike = lnlike_call(xArr, yArr, dyArr)
+
     # Set the prior function given the bounds
     prior = prior_call(boundsLst, priorType)
     nDim = len(boundsLst)
-    
-    # DEBUG
-    if False:
-        print("\nPrior tranform range:")
-        print("top:   %s" % prior([1., 1.]))
-        print("bottom %s" % prior([0., 0.]))
+
+    # Create the output directory
+    if not os.path.exists(outDir):
+        os.mkdir(outDir)
     
     # Run nested sampling
-    res = nestle.sample(loglikelihood   = lnlike,
-                        prior_transform = prior,
-                        ndim            = nDim,
-                        npoints         = nPoints,
-                        method          = "single")
+    pmn.run(lnlike,
+            prior,
+            nDim,
+            outputfiles_basename = outDir,
+            verbose              = True)
     
-    # Weighted average and covariance:
-    p, cov = nestle.mean_and_cov(res.samples, res.weights)
-    
-    # Summary of run
-    print("-"*80)
-    print("NESTLE SUMMARY:")
-    print(res.summary())
-    print("")
-    print("-"*80)
-    print("RESULTS:")
-    print("m = {0:5.2f} +/- {1:5.2f}".format(p[0], np.sqrt(cov[0, 0])))
-    print("c = {0:5.2f} +/- {1:5.2f}".format(p[1], np.sqrt(cov[1, 1])))
-    
-    # Plot the data and best fit
-    plot_model(p, xArr, yArr, dyArr)
 
-    print res.samples.shape
-    print res.weights.shape
-    
-    # Plot the triangle plot
-    fig = corner.corner(res.samples,
-                        weights = res.weights,
-                        labels  = ['m', 'b'],
-                        range   = [0.99999]*nDim,
-                        truths  = p,
-                        nbins   = 50)
-    fig.show()
-    print("Press <Return> to finish:")
-    raw_input()
-
-    
 #-----------------------------------------------------------------------------#
-def model(p):
+def model(p, x):
     """ Returns a function to evaluate the model """
     
     def rfunc(x):
-        y = p[0]*x + p[1]
+        y = p[0] + p[1]*x + p[2]*x**2. + p[3]*x**3.
         return y
+
+    return rfunc
+
+
+#-----------------------------------------------------------------------------#
+def lnlike_call(xArr, yArr, dyArr):
+    """ Returns a function to evaluate the log-likelihood """
+
+    def rfunc(p, nDim=None, nParams=None):        
+        return -0.5*(np.sum( (yArr-model(p)(xArr))**2/dyArr**2 ))
+
     return rfunc
 
 
@@ -116,11 +98,11 @@ def prior_call(boundsLst, priorType="uniform"):
     mu = b[:,0] + sigma
     
     if priorType == "normal":
-        def rfunc(p):
+        def rfunc(p, nDim=None, nParams=None):
             return mu + sigma * ndtri(p)
 
     else:
-        def rfunc(p):
+        def rfunc(p, nDim=None, nParams=None):
             return b[:,0] + p * r
         
     return rfunc

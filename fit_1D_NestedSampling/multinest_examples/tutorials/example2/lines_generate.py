@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 x = numpy.linspace(0, 1, 400)
 
-noise = 0.1
+noise = 0.01
 
 # model for 2 gaussians, same width, fixed offset
 def model(pos1, width, height1, height2):
