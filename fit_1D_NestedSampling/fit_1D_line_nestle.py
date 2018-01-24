@@ -80,8 +80,7 @@ def main():
     # Plot the data and best fit
     plot_model(p, xArr, yArr, dyArr)
 
-    print res.samples.shape
-    print res.weights.shape
+    print res.weights
     
     # Plot the triangle plot
     fig = corner.corner(res.samples,

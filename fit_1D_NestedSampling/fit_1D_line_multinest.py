@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 #=============================================================================#
 #                                                                             #
-# NAME:     fit_1D_poly_multinest.py                                          #
+# NAME:     fit_1D_line_multinest.py                                          #
 #                                                                             #
-# PURPOSE:  Example of using PyMultiNest to fit a polynomial to some data     #
+# PURPOSE:  Example of using PyMultiNest to fit a line to some data           #
 #                                                                             #
 # MODIFIED: 24-Jan-2018 by C. Purcell                                         #
 #                                                                             #
@@ -13,7 +13,7 @@
 specDat = "lineSpec.dat"
 
 # Output directory for chains
-outDir = "chains"
+outDir = specDat + "_out"
 
 # Prior bounds for m and c in linear model y = m*x + c
 boundsLst = [[  0.0,   1.0],    # 0 < m < 1 
@@ -25,10 +25,10 @@ priorType = ["uniform",
              "uniform"]
 
 # Number of points
-nPoints = 100
+nPoints = 500
 
 # Control verbosity
-verbose = True
+verbose = False
 
 
 #=============================================================================#
@@ -84,21 +84,24 @@ def main():
             n_live_points        = nPoints,
             verbose              = verbose)
     json.dump(['m', 'b'], open(outDir + '/params.json', 'w'))
+    
     # Query the analyser object for results
     aObj = pmn.Analyzer(n_params = nDim, outputfiles_basename=outDir + "/")
-
-    
-#    print "\n", "-"*80
-#    print "STATS"    
     statDict =  aObj.get_stats()
-#    for k, v in statDict.iteritems():
-#        print "\n", k,"\n", v
-
-#    print "\n", "-"*80
-#    print "BEST FIT"    
     fitDict =  aObj.get_best_fit()
-    for k, v in fitDict.iteritems():
-        print "\n", k,"\n", v
+
+    # DEBUG
+    if False:
+        print "\n", "-"*80
+        print "GET_STATS() OUTPUT"    
+        statDict =  aObj.get_stats()
+        for k, v in statDict.iteritems():
+            print "\n", k,"\n", v
+
+        print "\n", "-"*80
+        print "GET_BEST_FIT() OUTPUT"  
+        for k, v in fitDict.iteritems():
+            print "\n", k,"\n", v
 
     # Get the best fitting values and uncertainties
     p = fitDict["parameters"]
@@ -109,21 +112,31 @@ def main():
         dp[i] = statDict["marginals"][i]['1sigma']
         med[i] = statDict["marginals"][i]['median']
         
+    # Summary of run
+    print("-"*80)
+    print("RESULTS:")
+    print("m = {0:5.2f} +/- {1:5.2f}/{1:5.2f}".format(p[0],
+                                                      p[0]-dp[0][0],
+                                                      dp[0][1]-p[0]))
+    print("c = {0:5.2f} +/- {1:5.2f}/{1:5.2f}".format(p[1],
+                                                      p[1]-dp[1][0],
+                                                      dp[1][1]-p[1]))
+    
     # Plot the data and best fit
     plot_model(p, xArr, yArr, dyArr)
 
     # Plot the triangle plot
-    #pmn.plot.PlotMarginal(aObj)
     chains =  aObj.get_equal_weighted_posterior()
-    print chains[:,:nDim].shape
-    print chains[:,-1].shape
+    samples = chains[:, :nDim]
+    weights = np.exp(chains[:, -1])
+    fig = corner.corner(samples,
+                        weights = np.exp(weights),
+                        labels  = ['m', 'b'],
+                        range   = [0.99999]*nDim,
+                        truths  = p)
     
-    #fig = corner.corner(chains[:,:nDim],
-    #                    weights = chains[:,-1],
-    #                    labels  = ['m', 'b'],
-    #                    #range   = [0.99999]*nDim,
-    #                    truths  = p)
-    
+    fig.show()
+    print("Press <Return> to finish:")
     raw_input()
     
         
