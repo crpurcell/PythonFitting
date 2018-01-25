@@ -3,22 +3,24 @@
 #                                                                             #
 # NAME:     fit_1D_line_multinest.py                                          #
 #                                                                             #
-# PURPOSE:  Example of using PyMultiNest to fit a line to some data           #
+# PURPOSE:  Example of using PyMultiNest to fit a polynomial to some data     #
 #                                                                             #
 # MODIFIED: 25-Jan-2018 by C. Purcell                                         #
 #                                                                             #
 #=============================================================================#
 
 # Input dataset 
-specDat = "lineSpec.dat"
+specDat = "polySpec.dat"
 
 # Output directory for chains
 outDir = specDat + "_out"
 
-# Prior type and limits m and c in linear model y = m*x + c
+# Prior type and limits of parameters in 3rd order polynomial model
 # Type can be "uniform", "normal", "log" or "fixed" (=set to boundsLst[n][1])
-priorLst = [[ "uniform",   0.0,   1.0],    # 0 < m < 1 
-            [ "uniform", -10.0, 100.0]]    # 0 < c < 100
+priorLst = [["uniform",   0.0,   2.0],    #   0 < p[0] < 2
+            ["uniform",  -1.0,   1.0],    #  -1 < p[1] < 1 
+            ["uniform",  -1.0,   1.0],    #  -1 < p[2] < 1 
+            ["uniform",  -1.0,   1.0]]    #  -1 < p[4] < 1
 
 # Number of points
 nPoints = 500
@@ -47,9 +49,9 @@ def main():
     
     # Read in the spectrum
     specArr = np.loadtxt(specDat, dtype="float64", unpack=True)
-    xArr = specArr[0]
+    xArr = specArr[0] / 1e9   # GHz -> Hz for this dataset 
     yArr = specArr[1]
-    dyArr = specArr[2]
+    dyArr = specArr[4]
 
     # Create the output directory
     if os.path.exists(outDir):
@@ -59,19 +61,9 @@ def main():
     # Set the prior function given the bounds of each parameter
     prior = prior_call(priorLst)
     nDim = len(priorLst)
-
-    # DEBUG
-    if debug:
-        print("\nPrior tranform range:")
-        print("top:   %s" % prior([1., 1.], nDim, nDim))
-        print("bottom %s" % prior([0., 0.], nDim, nDim))
         
     # Set the likelihood function
     lnlike = lnlike_call(xArr, yArr, dyArr)
-
-    # DEBUG
-    if debug:
-        print("\nlnlike output: %s " % lnlike([0.5, 10.10], nDim, nDim))
     
     # Run nested sampling
     pmn.run(lnlike,
@@ -133,12 +125,9 @@ def main():
     print "dLn(EVIDENCE)", dLnEvidence
     print
     print '-'*80
-    print("m = {0:5.2f} +/- {1:5.2f}/{1:5.2f}".format(p[0],
-                                                      p[0]-dp[0][0],
-                                                      dp[0][1]-p[0]))
-    print("c = {0:5.2f} +/- {1:5.2f}/{1:5.2f}".format(p[1],
-                                                      p[1]-dp[1][0],
-                                                      dp[1][1]-p[1]))
+    for i in range(len(p)):
+        print("p%d = %.4f +/- %.4f/%.4f" % \
+              (i, p[i], p[i]-dp[i][0], dp[i][1]-p[i]))
     
     # Plot the data and best fit
     plot_model(p, xArr, yArr, dyArr)
@@ -146,9 +135,10 @@ def main():
     # Plot the triangle plot
     chains =  aObj.get_equal_weighted_posterior()
     fig = corner.corner(xs = chains[:, :nDim],
-                        labels  = ['m', 'b'],
+                        labels  = ["p" + str(i) for i in range(nDim)],
                         range   = [0.99999]*nDim,
-                        truths  = p)
+                        truths  = p,
+                        bins    = 30)
     
     fig.show()
     print("Press <Return> to finish:")
@@ -159,7 +149,7 @@ def main():
 def model(p, x):
     """ Evaluate the model given an X array """
     
-    return p[0]*x + p[1]
+    return p[0] + p[1]*x + p[2]*x**2. + p[3]*x**3.
 
 
 #-----------------------------------------------------------------------------#
