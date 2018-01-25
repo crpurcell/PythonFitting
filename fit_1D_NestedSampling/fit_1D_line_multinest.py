@@ -29,6 +29,7 @@ nPoints = 500
 
 # Control verbosity
 verbose = False
+debug = True
 
 
 #=============================================================================#
@@ -64,7 +65,7 @@ def main():
     nDim = len(boundsLst)
 
     # DEBUG
-    if False:
+    if debug:
         print("\nPrior tranform range:")
         print("top:   %s" % prior([1., 1.], nDim, nDim))
         print("bottom %s" % prior([0., 0.], nDim, nDim))
@@ -73,7 +74,7 @@ def main():
     lnlike = lnlike_call(xArr, yArr, dyArr)
 
     # DEBUG
-    if False:
+    if debug:
         print("\nlnlike output: %s " % lnlike([0.5, 10.10], nDim, nDim))
     
     # Run nested sampling
@@ -91,10 +92,9 @@ def main():
     fitDict =  aObj.get_best_fit()
 
     # DEBUG
-    if False:
+    if debug:
         print "\n", "-"*80
         print "GET_STATS() OUTPUT"    
-        statDict =  aObj.get_stats()
         for k, v in statDict.iteritems():
             print "\n", k,"\n", v
 
@@ -105,16 +105,38 @@ def main():
 
     # Get the best fitting values and uncertainties
     p = fitDict["parameters"]
+    lnLike = fitDict["log_likelihood"]
+    lnEvidence = statDict["nested sampling global log-evidence"]
+    dLnEvidence = statDict["nested sampling global log-evidence error"]
     med = [None] *nDim
     dp = [[None, None]]*nDim
     for i in range(nDim):   
         dp[i] = statDict["marginals"][i]['1sigma']
         dp[i] = statDict["marginals"][i]['1sigma']
         med[i] = statDict["marginals"][i]['median']
+
+    # Calculate goodness-of-fit parameters
+    nSamp = len(xArr)
+    dof = nSamp - nDim -1
+    chiSq = -2.0*lnLike
+    chiSqRed = chiSq/dof
+    AIC = 2.0*nDim - 2.0 * lnLike
+    AICc = 2.0*nDim*(nDim+1)/(nSamp-nDim-1) - 2.0 * lnLike
+    BIC = nDim * np.log(nSamp) - 2.0 * lnLike
         
     # Summary of run
     print("-"*80)
     print("RESULTS:")
+    print "DOF:", dof
+    print "CHISQ:", chiSq
+    print "CHISQ RED:", chiSqRed
+    print "AIC:", AIC
+    print "AICc", AICc
+    print "BIC", BIC
+    print "ln(EVIDENCE)", lnEvidence
+    print "dLn(EVIDENCE)", dLnEvidence
+    print
+    print '-'*80
     print("m = {0:5.2f} +/- {1:5.2f}/{1:5.2f}".format(p[0],
                                                       p[0]-dp[0][0],
                                                       dp[0][1]-p[0]))
