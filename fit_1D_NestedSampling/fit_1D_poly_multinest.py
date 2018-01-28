@@ -5,7 +5,7 @@
 #                                                                             #
 # PURPOSE:  Example of using PyMultiNest to fit a polynomial to some data     #
 #                                                                             #
-# MODIFIED: 25-Jan-2018 by C. Purcell                                         #
+# MODIFIED: 28-Jan-2018 by C. Purcell                                         #
 #                                                                             #
 #=============================================================================#
 
@@ -23,10 +23,10 @@ priorLst = [["uniform",   0.0,   2.0],    #   0 < p[0] < 2
             ["uniform",  -1.0,   1.0]]    #  -1 < p[4] < 1
 
 # Number of points
-nPoints = 500
+nPoints = 100
 
 # Control verbosity
-verbose = False
+verbose = True
 debug = False
 
 
@@ -37,7 +37,7 @@ import shutil
 import json
 import numpy as np
 import matplotlib as mpl
-import pylab as pl
+import matplotlib.pyplot as plt
 from scipy.special import ndtri
 
 import pymultinest as pmn
@@ -64,14 +64,17 @@ def main():
         
     # Set the likelihood function
     lnlike = lnlike_call(xArr, yArr, dyArr)
-    
+
     # Run nested sampling
-    pmn.run(lnlike,
-            prior,
-            nDim,
-            outputfiles_basename = outDir + "/",
-            n_live_points        = nPoints,
-            verbose              = verbose)
+    argsDict = init_mnest()
+    argsDict["n_params"]             = nDim
+    argsDict["n_dims"]               = nDim
+    argsDict["outputfiles_basename"] = outDir + "/"
+    argsDict["n_live_points"]        = nPoints
+    argsDict["verbose"]              = verbose
+    argsDict["LogLikelihood"]        = lnlike
+    argsDict["Prior"]                = prior
+    pmn.run(**argsDict)
     json.dump(['m', 'b'], open(outDir + '/params.json', 'w'))
     
     # Query the analyser object for results
@@ -130,19 +133,19 @@ def main():
               (i, p[i], p[i]-dp[i][0], dp[i][1]-p[i]))
     
     # Plot the data and best fit
-    plot_model(p, xArr, yArr, dyArr)
-
+    dataFig = plot_model(p, xArr, yArr, dyArr)
+    dataFig.savefig(outDir + "/fig_best_fit.pdf")
+    plt.close(dataFig)
+    
     # Plot the triangle plot
     chains =  aObj.get_equal_weighted_posterior()
-    fig = corner.corner(xs = chains[:, :nDim],
-                        labels  = ["p" + str(i) for i in range(nDim)],
-                        range   = [0.99999]*nDim,
-                        truths  = p,
-                        bins    = 30)
-    
-    fig.show()
-    print("Press <Return> to finish:")
-    raw_input()
+    cornerFig = corner.corner(xs = chains[:, :nDim],
+                              labels  = ["p" + str(i) for i in range(nDim)],
+                              range   = [0.99999]*nDim,
+                              truths  = p,
+                              bins    = 30)
+    cornerFig.savefig(outDir + "/fig_corner.pdf")
+    plt.close(cornerFig)
     
         
 #-----------------------------------------------------------------------------#
@@ -202,7 +205,7 @@ def plot_model(p, x, y, dy, scaleX=1.0):
     ySamp = model(p, xSamp)
 
     # Plot the channels and fit
-    fig = pl.figure()
+    fig = plt.figure()
     fig.set_size_inches([8,4])
     ax = fig.add_subplot(1,1,1)
     ax.set_xlabel('X')
@@ -211,7 +214,41 @@ def plot_model(p, x, y, dy, scaleX=1.0):
             mec='g', ms=10, label='none', lw=1.0)
     ax.errorbar(x=x*scaleX , y=y, yerr=dy, mfc='none', ms=4, fmt='D',
                 ecolor='red', elinewidth=1.0, capsize=2)
-    fig.show()
+
+    return fig
+
+
+#-----------------------------------------------------------------------------#
+def init_mnest():
+    """Initialise MultiNest arguments"""
+    
+    argsDict = {'LogLikelihood':              '',
+                'Prior':                      '',
+                'n_dims':                     0,
+                'n_params':                   0,
+                'n_clustering_params':        0,
+                'wrapped_params':             None,
+                'importance_nested_sampling': False,
+                'multimodal':                 False,
+                'const_efficiency_mode':      False,
+                'n_live_points':              100,
+                'evidence_tolerance':         0.5,
+                'sampling_efficiency':        'model',
+                'n_iter_before_update':       500,
+                'null_log_evidence':          -1.e90,
+                'max_modes':                  100,
+                'mode_tolerance':             -1.e90,
+                'outputfiles_basename':       '',
+                'seed':                       -1,
+                'verbose':                    True,
+                'resume':                     True,
+                'context':                    0,
+                'write_output':               True,
+                'log_zero':                   -1.e100,
+                'max_iter':                   0,
+                'init_MPI':                   False,
+                'dump_callback':              None}
+    return argsDict
 
     
 #-----------------------------------------------------------------------------#

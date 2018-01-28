@@ -5,6 +5,7 @@
 # Import standard and third party modules
 import sys
 import os
+import shutil
 import numpy as np
 from scipy import stats
 from scipy import linalg
@@ -112,6 +113,12 @@ def initialize_mnest():
 
 def main():
 
+        # Create the output directory
+        outDir = "chains"
+        if os.path.exists(outDir):
+                shutil.rmtree(outDir, True)
+        os.mkdir(outDir)
+
 	# Set correlation coefficient
 	corr = -0.5
 
@@ -149,7 +156,7 @@ def main():
 	n_params = len(types)
 	mnest_args['n_params'] = n_params
 	mnest_args['n_dims'] = n_params
-	mnest_args['outputfiles_basename'] = 'chains/nocorr_'
+	mnest_args['outputfiles_basename'] = outDir + '/nocorr_'
 	mnest_args['LogLikelihood'] = loglike_call([data[0],data[1],ex,ey])
 	mnest_args['Prior'] = prior_call(types, pmins, pmaxs)
 	pymultinest.run(**mnest_args)
@@ -162,7 +169,7 @@ def main():
 	n_params = len(types)
 	mnest_args['n_params'] = n_params
 	mnest_args['n_dims'] = n_params
-	mnest_args['outputfiles_basename'] = 'chains/withcorr_'
+	mnest_args['outputfiles_basename'] = outDir +  '/withcorr_'
 	mnest_args['LogLikelihood'] = loglike_call([data[0],data[1],ex,ey])
 	mnest_args['Prior'] = prior_call(types, pmins, pmaxs)
 	pymultinest.run(**mnest_args)
