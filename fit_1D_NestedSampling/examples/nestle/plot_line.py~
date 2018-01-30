@@ -28,7 +28,6 @@ y = model(theta_true, x)
 yerr = 0.1+0.5*np.random.rand(N)
 y += yerr * np.random.randn(N)
 
-np.savetxt("simpleSpec.dat", zip(x, y, yerr))
 
 # The likelihood function:
 def loglike(theta):
