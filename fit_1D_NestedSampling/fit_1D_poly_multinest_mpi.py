@@ -23,13 +23,12 @@ priorLst = [["uniform",   0.0,   2.0],    #   0 < p[0] < 2
             ["uniform",  -1.0,   1.0]]    #  -1 < p[4] < 1
 
 # Number of points
-nPoints = 100
+nPoints = 1000
 
 # Control verbosity
-verbose = True
+verbose = False
 debug = False
 showPlots = False
-
 
 #=============================================================================#
 
@@ -37,6 +36,7 @@ import os
 import sys
 import shutil
 import json
+import time
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -45,20 +45,47 @@ from scipy.special import ndtri
 import pymultinest as pmn
 from Imports import corner
 
+# Check if mpi4py is available
+try:
+    from mpi4py import MPI
+    mpiSwitch = True
+except:
+    mpiSwitch = False
+    
 
 #-----------------------------------------------------------------------------#
 def main():
+
+    # Get the processing environment
+    if mpiSwitch:
+        mpiComm = MPI.COMM_WORLD
+        mpiSize = mpiComm.Get_size()
+        mpiRank = mpiComm.Get_rank()
+    else:
+        mpiRank = 0
+        
+    # Let's time the sampler
+    if mpiRank==0:
+        startTime = time.time()
+    
+    # Create the output directory    
+    if mpiRank==0:
+        if os.path.exists(outDir):
+            shutil.rmtree(outDir, True)
+        os.mkdir(outDir)
+    if mpiSwitch:
+        mpiComm.Barrier()
     
     # Read in the spectrum
-    specArr = np.loadtxt(specDat, dtype="float64", unpack=True)
-    xArr = specArr[0] / 1e9   # GHz -> Hz for this dataset 
+    if mpiRank==0:
+        specArr = np.loadtxt(specDat, dtype="float64", unpack=True)
+    else:
+        specArr = None
+    if mpiSwitch:
+        specArr = mpiComm.bcast(specArr, root=0)
+    xArr = specArr[0] / 1e9   # GHz -> Hz for this dataset
     yArr = specArr[1]
     dyArr = specArr[4]
-
-    # Create the output directory
-    if os.path.exists(outDir):
-        shutil.rmtree(outDir, True)
-    os.mkdir(outDir)
 
     # Set the prior function given the bounds of each parameter
     prior = prior_call(priorLst)
@@ -77,90 +104,100 @@ def main():
     argsDict["LogLikelihood"]        = lnlike
     argsDict["Prior"]                = prior
     pmn.run(**argsDict)
-    json.dump(['m', 'b'], open(outDir + '/params.json', 'w'))
-    
-    # Query the analyser object for results
-    aObj = pmn.Analyzer(n_params = nDim, outputfiles_basename=outDir + "/")
-    statDict =  aObj.get_stats()
-    fitDict =  aObj.get_best_fit()
 
-    # DEBUG
-    if debug:
-        print("\n", "-"*80)
-        print("GET_STATS() OUTPUT")
-        for k, v in statDict.iteritems():
-            print("\n", k,"\n", v)
-
-        print("\n", "-"*80)
-        print("GET_BEST_FIT() OUTPUT"  )
-        for k, v in fitDict.iteritems():
-            print("\n", k,"\n", v)
-
-    # Get the best fitting values and uncertainties
-    p = fitDict["parameters"]
-    lnLike = fitDict["log_likelihood"]
-    lnEvidence = statDict["nested sampling global log-evidence"]
-    dLnEvidence = statDict["nested sampling global log-evidence error"]
-    med = [None] *nDim
-    dp = [[None, None]]*nDim
-    for i in range(nDim):   
-        dp[i] = statDict["marginals"][i]['1sigma']
-        med[i] = statDict["marginals"][i]['median']
-
-    # Calculate goodness-of-fit parameters
-    nSamp = len(xArr)
-    dof = nSamp - nDim -1
-    chiSq = -2.0*lnLike
-    chiSqRed = chiSq/dof
-    AIC = 2.0*nDim - 2.0 * lnLike
-    AICc = 2.0*nDim*(nDim+1)/(nSamp-nDim-1) - 2.0 * lnLike
-    BIC = nDim * np.log(nSamp) - 2.0 * lnLike
+    # Do the post-processing on one processor
+    if mpiSwitch:
+        mpiComm.Barrier()
+    if mpiRank==0:
         
-    # Summary of run
-    print("-"*80)
-    print("RESULTS:")
-    print("DOF:", dof)
-    print("CHISQ:", chiSq)
-    print("CHISQ RED:", chiSqRed)
-    print("AIC:", AIC)
-    print("AICc", AICc)
-    print("BIC", BIC)
-    print("ln(EVIDENCE)", lnEvidence)
-    print("dLn(EVIDENCE)", dLnEvidence)
-    print("")
-    print('-'*80)
-    for i in range(len(p)):
-        #print("p%d = %.4f +/- %.4f/%.4f" % \
-        #      (i, p[i], p[i]-dp[i][0], dp[i][1]-p[i]))
-        print("p%d = %.4f [%.4f, %.4f]" % \
-              (i, p[i], dp[i][0], dp[i][1]))
-    
-    # Plot the data and best fit
-    dataFig = plot_model(p, xArr, yArr, dyArr)
-    dataFig.savefig(outDir + "/fig_best_fit.pdf")
-    
-    # Plot the triangle plot
-    chains =  aObj.get_equal_weighted_posterior()
-    cornerFig = corner.corner(xs = chains[:, :nDim],
-                              labels  = ["p" + str(i) for i in range(nDim)],
-                              range   = [0.99999]*nDim,
-                              truths  = p,
-                              bins    = 30)
-    cornerFig.savefig(outDir + "/fig_corner.pdf")
+        # Query the analyser object for results
+        aObj = pmn.Analyzer(n_params = nDim, outputfiles_basename=outDir + "/")
+        statDict =  aObj.get_stats()
+        fitDict =  aObj.get_best_fit()        
+        endTime = time.time()
 
-    # Show the figures
-    if showPlots:
-        dataFig.show()
-        cornerFig.show()
-        print("Press <return> to continue ...", end="")
-        raw_input()
-    
-    # Clean up
-    plt.close(dataFig)
-    plt.close(cornerFig)
+        # DEBUG
+        if debug:
+            print("\n", "-"*80)
+            print("GET_STATS() OUTPUT")
+            for k, v in statDict.iteritems():
+                print("\n", k,"\n", v)
 
-    return 0
+            print("\n", "-"*80)
+            print("GET_BEST_FIT() OUTPUT"  )
+            for k, v in fitDict.iteritems():
+                print("\n", k,"\n", v)
+
+        # Get the best fitting values and uncertainties
+        p = fitDict["parameters"]
+        lnLike = fitDict["log_likelihood"]
+        lnEvidence = statDict["nested sampling global log-evidence"]
+        dLnEvidence = statDict["nested sampling global log-evidence error"]
+        med = [None] *nDim
+        dp = [[None, None]]*nDim
+        for i in range(nDim):   
+            dp[i] = statDict["marginals"][i]['1sigma']
+            med[i] = statDict["marginals"][i]['median']
+
+        # Calculate goodness-of-fit parameters
+        nSamp = len(xArr)
+        dof = nSamp - nDim -1
+        chiSq = calc_chisq(p, xArr, yArr, dyArr)
+        chiSqRed = chiSq/dof
+        AIC = 2.0*nDim - 2.0 * lnLike
+        AICc = 2.0*nDim*(nDim+1)/(nSamp-nDim-1) - 2.0 * lnLike
+        BIC = nDim * np.log(nSamp) - 2.0 * lnLike
         
+        # Summary of run
+        print("")
+        print("-"*80)
+        print("SUMMARY OF SAMPLING RUN:")
+        print("NUM-PROCESSORS: %d" % mpiSize)
+        print("RUN-TIME: %.2f" % (endTime-startTime))
+        print("DOF:", dof)
+        print("CHISQ:", chiSq)
+        print("CHISQ RED:", chiSqRed)
+        print("AIC:", AIC)
+        print("AICc", AICc)
+        print("BIC", BIC)
+        print("ln(EVIDENCE)", lnEvidence)
+        print("dLn(EVIDENCE)", dLnEvidence)
+        print("")
+        print('-'*80)
+        print("BEST FIT PARAMETERS & MARGINALS:")
+        for i in range(len(p)):
+            print("p%d = %.4f [%.4f, %.4f]" % \
+                  (i, p[i], dp[i][0], dp[i][1]))
+    
+        # Plot the data and best fit
+        dataFig = plot_model(p, xArr, yArr, dyArr)
+        dataFig.savefig(outDir + "/fig_best_fit.pdf")
+    
+        # Plot the triangle plot
+        chains =  aObj.get_equal_weighted_posterior()
+        cornerFig = corner.corner(xs = chains[:, :nDim],
+                                  labels  = ["p" + str(i) for i in range(nDim)],
+                                  range   = [0.99999]*nDim,
+                                  truths  = p,
+                                  bins    = 30)
+        cornerFig.savefig(outDir + "/fig_corner.pdf")
+
+        # Show the figures
+        if showPlots:
+            dataFig.show()
+            cornerFig.show()
+            print("Press <return> to continue ...", end="")
+            raw_input()
+    
+        # Clean up
+        plt.close(dataFig)
+        plt.close(cornerFig)
+
+    # Clean up MPI environment
+    if mpiSwitch:
+        MPI.Finalize()
+
+
 #-----------------------------------------------------------------------------#
 def model(p, x):
     """ Evaluate the model given an X array """
@@ -173,10 +210,18 @@ def lnlike_call(xArr, yArr, dyArr):
     """ Returns a function to evaluate the log-likelihood """
 
     def lnlike(p, nDim, nParams):
-        return -0.5 * (np.sum( (yArr-model(p, xArr))**2./dyArr**2. ))
-
+        chisq = calc_chisq(p, xArr, yArr, dyArr)
+        prefactor = np.sum( np.log(2.0*np.pi*dyArr**2.) )
+        return -0.5*(prefactor + chisq)
+                
     return lnlike
 
+
+#-----------------------------------------------------------------------------#
+def calc_chisq(p, xArr, yArr, dyArr):
+    """ Calculate chi-squared for a model given the data """
+    return np.sum( (yArr-model(p, xArr))**2./dyArr**2. )
+    
 
 #-----------------------------------------------------------------------------#
 def prior_call(priorLst):
