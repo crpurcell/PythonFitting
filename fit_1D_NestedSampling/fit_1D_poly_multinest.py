@@ -26,7 +26,7 @@ priorLst = [["uniform",   0.0,   2.0],    #   0 < p[0] < 2
 nPoints = 1000
 
 # Control verbosity
-verbose = True
+verbose = False
 debug = False
 showPlots = True
 

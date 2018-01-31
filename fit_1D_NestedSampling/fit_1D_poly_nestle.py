@@ -26,6 +26,7 @@ priorType = "uniform"
 #=============================================================================#
 import os
 import sys
+import time
 import numpy as np
 import matplotlib as mpl
 import pylab as pl
@@ -38,6 +39,8 @@ from Imports import corner
 #-----------------------------------------------------------------------------#
 def main():
     
+    startTime = time.time()
+        
     # Read in the spectrum
     specArr = np.loadtxt(specDat, dtype="float64", unpack=True)
     xArr = specArr[0] / 1e9   # GHz -> Hz for this dataset 
@@ -56,16 +59,19 @@ def main():
     res = nestle.sample(loglikelihood   = lnlike,
                         prior_transform = priorTr,
                         ndim            = nDim,
-                        npoints         = 300,
+                        npoints         = 1000,
                         method          = "single")
     
     # Weighted average and covariance:
     p, cov = nestle.mean_and_cov(res.samples, res.weights)
-    
+         
+    endTime = time.time()
+        
     # Summary of run
     print("-"*80)
     print("NESTLE SUMMARY:")
     print(res.summary())
+    print("RUN-TIME: %.2f" % (endTime-startTime))
     print("")
     print("-"*80)
     print("RESULTS:")
