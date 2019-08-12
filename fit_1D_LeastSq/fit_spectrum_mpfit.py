@@ -13,8 +13,8 @@ import numpy as np
 from mpfit import mpfit
 import pylab as pl
 import matplotlib as mpl
-from scipy.stats.stats import nanmedian
-from scipy.stats.stats import nanmean
+from scipy import nanmedian
+from scipy import nanmean
 
 
 #-----------------------------------------------------------------------------#
@@ -34,13 +34,13 @@ def main():
      
     # Fit the spectrum
     mp = fit_spec_poly5(specIArr[0], specIArr[1], specIArr[4], order)
-    print "STATUS:", mp.status
-    print "CHISQ:", mp.fnorm
-    print "CHISQred:", mp.fnorm/(len(specIArr[0])-order-1)
-    print "NITER:", mp.niter
-    print " P:", mp.params*scaleY
-    print "dP:", mp.perror*scaleY
-    print "scaleX, scaleY:", scaleX, scaleY
+    print("STATUS:", mp.status)
+    print("CHISQ:", mp.fnorm)
+    print("CHISQred:", mp.fnorm/(len(specIArr[0])-order-1))
+    print("NITER:", mp.niter)
+    print(" P:", mp.params*scaleY)
+    print("dP:", mp.perror*scaleY)
+    print("scaleX, scaleY:", scaleX, scaleY)
     
     # Plot the model spectrum
     plot_spec_poly5(mp.params*scaleY, specIArr[0], specIArr[1]*scaleY,
@@ -114,8 +114,8 @@ def plot_spec_poly5(p, x, y, dy, scaleX=1.0):
     ax.errorbar(x=x*scaleX , y=y, yerr=dy, mfc='none', ms=4, fmt='D',
                 ecolor='red', elinewidth=1.0, capsize=2)
     fig.show()
-    print "Press <Return> to finish:",
-    raw_input()
+    print("Press <Return> to finish:",)
+    input()
 
     
     
