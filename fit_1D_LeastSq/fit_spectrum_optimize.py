@@ -4,7 +4,7 @@
 specIdat = 'Source8.dat'
 specIdat = 'HotSpot.dat'
 
-order = 5
+order = 0
 
 #=============================================================================#
 import os, sys, shutil
@@ -14,8 +14,8 @@ from mpfit import mpfit
 import scipy.optimize as op
 import pylab as pl
 import matplotlib as mpl
-from scipy.stats.stats import nanmedian
-from scipy.stats.stats import nanmean
+from numpy import nanmedian
+from numpy import nanmean
 
 
 #-----------------------------------------------------------------------------#
@@ -30,14 +30,13 @@ def main():
     p = retMatrix[0]
     chiSq = retMatrix[1]
     chiSqRed = chiSq/(len(specIArr[0])-len(p)-1)
-    print "CHISQ:", retMatrix[1]
-    print "CHISQred:", retMatrix[1]/(len(specIArr[0])-len(p)-1)
-    print "P:", retMatrix[1]
+    print("CHISQ:", retMatrix[1])
+    print("CHISQred:", retMatrix[1]/(len(specIArr[0])-len(p)-1))
+    print("P:", retMatrix[1])
 
     for e in retMatrix:
-        print e
-    
-    
+        print(e)
+
     # Plot the model spectrum
     plot_spec_poly5(p, specIArr[0], specIArr[1], specIArr[4])
 
@@ -52,8 +51,8 @@ def fit_spec_poly5(xData, yData, dyData, order=5):
     C1 = nanmean(np.diff(yData)) / nanmedian(np.diff(xData))
     ind = int(np.median(np.where(~np.isnan(yData))))
     C0 = yData[ind] - (C1 * xData[ind])
-    if order<1:
-        order=1
+#   if order<1:
+#       order=1
     p0 = [0.0, 0.0, 0.0, 0.0, C1, C0]
 
     # Set the order
@@ -63,8 +62,9 @@ def fit_spec_poly5(xData, yData, dyData, order=5):
         return np.sum( ((poly5(p)(x) - y)/ dyData)**2.0 )
 
     # Use minimize to perform the fit
-    return op.fmin_bfgs(chisq, p0, args=(xData, yData), full_output=1)
-    
+    return op.fmin(chisq, p0, args=(xData, yData), full_output=1,
+                        disp=False, retall=False)
+
 
 #-----------------------------------------------------------------------------#
 def plot_spec_poly5(p, x, y, dy):
@@ -87,8 +87,7 @@ def plot_spec_poly5(p, x, y, dy):
     ax.errorbar(x=x , y=y, yerr=dy, mfc='none', ms=4, fmt='D', ecolor='grey',
                 elinewidth=1.0, capsize=2)
     fig.show()
-    print "Press <Return> to finish:",
-    raw_input()
+    input("Press <Return> to finish:")
 
     
 #-----------------------------------------------------------------------------

@@ -12,8 +12,8 @@ import numpy.ma as ma
 from mpfit import mpfit
 import pylab as pl
 import matplotlib as mpl
-from scipy.stats.stats import nanmedian
-from scipy.stats.stats import nanmean
+from scipy import nanmedian
+from scipy import nanmean
 
 
 #-----------------------------------------------------------------------------#
@@ -26,7 +26,7 @@ def main():
     
     # Fit the spectrum
     p, success = fit_rmsf(phi, absRMSF)
-    print p, success
+    print(p, success)
     # Plot the model spectrum
     plot_rmsf_gauss(p, phi, absRMSF)
 

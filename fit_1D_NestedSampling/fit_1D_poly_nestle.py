@@ -89,8 +89,7 @@ def main():
                         truths  = p,
                         bins    = 30)
     fig.show()
-    print("Press <Return> to finish:")
-    raw_input()
+    input("Press <Return> to finish:")
 
     
 #-----------------------------------------------------------------------------#

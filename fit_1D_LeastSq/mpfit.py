@@ -1439,7 +1439,7 @@ class mpfit:
             else:
                 p = '   P' + str(i) + ' = '
             #if (parinfo is not None) and (parinfo[i].has_key('mpprint')):
-            if (parinfo is not None) and (mpprint in parinfo[i]):
+            if (parinfo is not None) and ('mpprint' in parinfo[i]):
                 iprint = parinfo[i]['mpprint']
             else:
                 iprint = 1

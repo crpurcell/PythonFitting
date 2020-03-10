@@ -25,7 +25,7 @@ def main():
     # Fit the data starting from an initial guess
     p0 = [5.1, 90.0, 70.0, 10.0, 10.0, m.radians(0.0)]
     p1, success = optimize.leastsq(errFn, p0)
-    print p1, success
+    print(p1, success)
 
     #-------------------------------------------------------------------------#
   
