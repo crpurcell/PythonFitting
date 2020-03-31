@@ -65,11 +65,11 @@ def main():
     
     # Fit the data starting from an initial guess
     mp = mpfit(errFn, parinfo=inParms, quiet=False)
-    print 
+    print() 
     for i in range(len(inParms)):
-        print "%s = %f +/- %f" % (inParms[i]['parname'],
+        print("%s = %f +/- %f" % (inParms[i]['parname'],
                                   mp.params[i],
-                                  mp.perror[i])
+                                  mp.perror[i]))
     p1 = mp.params
 
     #-------------------------------------------------------------------------#
